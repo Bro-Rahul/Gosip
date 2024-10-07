@@ -8,4 +8,4 @@ admin.site.register(Publisher)
 admin.site.register(Commenter)
 admin.site.register(Followers)
 admin.site.register(SecretKeys)
-
+admin.site.register(VerificationCode)

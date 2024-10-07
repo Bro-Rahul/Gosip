@@ -2,14 +2,19 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.views import APIView
+from django.core.exceptions import ValidationError
+from django.template.loader import render_to_string
+from .utils import send_mail_async
 from .permissions import *
 from .models import *
 from .serializer import *
-
+import random
+import threading
 # Create your views here.
+
 
 class UserView(ViewSet):
     queryset = User.objects.all()
@@ -26,7 +31,7 @@ class UserView(ViewSet):
             serializer = CommenterSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data,status=status.HTTP_200_OK)
+                return Response({'info':'User created success !'},status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as v:
@@ -82,8 +87,7 @@ class AuthenticationView(ObtainAuthToken):
      
     def post(self, request, *args, **kwargs):
         username = request.data.get('username',None)
-        email = request.data.get('email',None)
-        commenter = Commenter.objects.filter(username = username,email = email).first()
+        commenter = Commenter.commenter.get(username = username)
         if not commenter:
             return Response({'info':'no such user exists with this creadencial'},status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -91,7 +95,6 @@ class AuthenticationView(ObtainAuthToken):
             serializer.is_valid(raise_exception=True)
             try:
                 user = serializer.validated_data['user']
-                user_instance = User.objects.get(username = user)
             except User.DoesNotExist as e:
                 return Response({'info':'no such user exists !'},status=status.HTTP_400_BAD_REQUEST)
             
@@ -99,13 +102,14 @@ class AuthenticationView(ObtainAuthToken):
             data = {
                 'token':token.key,
                 'id' : commenter.pk,
-                'profile' : commenter.avatar.url
+                'profile' : commenter.avatar.url if commenter.avatar else None
             }
             return Response(data,status=status.HTTP_200_OK)
     
     def delete(self, request, pk=None):
         try:
             user = User.objects.get(pk = pk)
+            print(request.user)
             self.check_object_permissions(request,user)
             user_token = Token.objects.get(user_id = pk)
         except Token.DoesNotExist as e:
@@ -137,3 +141,84 @@ class SecretKeyView(ViewSet):
             return Response({'info':'Publisher account is required ! '},status=status.HTTP_400_BAD_REQUEST)
         except:
             return self.get_secret_key(request,pk)
+
+class ValidateEmailCodeView(ViewSet):
+    model = VerificationCode
+    serializer_class = VerificationCodeSerializer
+
+    @action(methods=['POST'],detail=False,url_path='verify-otp-code')
+    def verify_emailcode(self,request):
+        actual_data = self.model.objects.get(email = request.data['email'])
+        if actual_data:
+            result:bool = actual_data.validate_code(int(request.data['code']))
+            if result == True:
+                return Response(status=status.HTTP_200_OK)
+            else:
+                return Response({'info' : 'wrong otp enter !'},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'info' : 'no such user with this email exists'},status=status.HTTP_400_BAD_REQUEST)
+
+
+    @action(methods=['POST'],detail=False,url_path='generate-otp-code')
+    def generate_code(self,request):
+        new_verificationcode = random.choice(range(1000,9999))
+        user_info ,created = self.model.objects.get_or_create(email = request.data)
+        user_info.code = new_verificationcode
+        user_info.save()
+
+        email_str = render_to_string('email.html',{'verification_code' : new_verificationcode})
+        threading.Thread(target=send_mail_async,args=(user_info.email,email_str)).start()
+        return Response({'info': 'email is sended success!'},status=status.HTTP_200_OK)
+
+
+class ForgetPasswordView(ViewSet):
+    model = Commenter
+
+    @action(methods=['GET'],detail = True,url_path="send-otp")
+    def validate_user(self,request,pk=None):
+        try:
+            userinfo = self.model.objects.get(username = pk)
+        except Exception as e:
+            return Response({'info':'no such user exists '},status=status.HTTP_400_BAD_REQUEST)
+        new_otp_code = random.choice(range(1000,9999))
+        email_str = render_to_string('forgetPassword.html',{"user":userinfo,"otp":new_otp_code})
+        user_otp =VerificationCode.objects.get(email = userinfo.email)
+        user_otp.code = new_otp_code
+        user_otp.save()
+        threading.Thread(target=send_mail_async,args=(userinfo.email,email_str)).start()
+
+        return Response({'info':'otp sended !'},status=status.HTTP_200_OK)
+    
+    @action(methods=['POST'],detail = False,url_path="verify-otp")
+    def validate_otp(self,request):
+        try:
+            userinfo = self.model.objects.get(username = request.data['username'])
+        except Exception as e:
+            return Response({'info':'no such user exists '},status=status.HTTP_400_BAD_REQUEST)
+        actual_otp = VerificationCode.objects.filter(email = userinfo.email).first()
+        if actual_otp:
+            result = actual_otp.validate_code(int(request.data['code']))
+            if result == True:
+                return Response({'info':'otp verified !'},status=status.HTTP_200_OK)
+            else:
+                return Response({'info':'enter an Valid otp !'},status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'info':'otp does not verified !'},status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(methods=['POST'],detail = False,url_path="change-password")
+    def change_password(self,request):
+        if not request.data.get('code',None):
+            return Response({'info':'please verify with otp first '},status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_info = self.model.objects.get(username = request.data['username'])
+            actual_otp = VerificationCode.objects.filter(email = user_info.email).first()
+        except Exception as e:
+            return Response({'info':'no such user exists '},status=status.HTTP_400_BAD_REQUEST)
+        if actual_otp and actual_otp.validate_code(int(request.data['code'])):
+            user_info.set_password(request.data['password'])
+            user_info.save()
+            return Response({'info':'pasword has been changed'},status = status.HTTP_200_OK)
+        else:
+            return Response({'info':'otp is not valid'},status=status.HTTP_400_BAD_REQUEST)
+        
+    

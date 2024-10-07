@@ -2,7 +2,7 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.authentication import TokenAuthentication
-from .permissions import VerifySecretKey,CommentorCreatorOrReadOnly
+from .permissions import CommentorCreatorOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db.models import Q
@@ -11,6 +11,7 @@ from .models import *
 
 
 # Create your views here.
+
 class ThreadView(ViewSet):
     queryset = Thread.objects.all()
     serializer_class = ThreadSerializer
@@ -37,13 +38,14 @@ class ThreadView(ViewSet):
     def get_comments(self,request):
         secret_key = request.data.get('key',None)
         post = request.data.get('post',None)
+        user_id = request.data.get('user_id',None)
+
         contains = Publisher.publisher.filter(secret_key__key = secret_key).exists()
         if contains:
             identify = request.data.get('identity',None)
             data = Thread.objects.filter(Q(user_post__created_by__secret_key__key = secret_key) & Q(identity=identify))
-            print(data.count())
             if data.count()!=0:
-                serializer = ThreadSerializer(data,many=True)
+                serializer = ThreadSerializer(data,many=True,context={'user': user_id})
                 return Response(serializer.data,status=status.HTTP_200_OK)
             else:                
                 if not post:
@@ -121,6 +123,7 @@ class CommentView(ViewSet):
     serializer_class = CommentSerializer
     authentication_classes = [TokenAuthentication]
 
+
     def get_permissions(self):
         if self.request.method in ['GET','POST']:
             self.permission_classes = [IsAuthenticated]
@@ -129,7 +132,7 @@ class CommentView(ViewSet):
         return super().get_permissions()
     
     def list(self,request):
-        serializer = self.serializer_class(self.queryset,many=True)
+        serializer = self.serializer_class(self.queryset,many=True,context={'info':'this is info'})
         return Response(serializer.data)
     
     def create(self,request):
@@ -225,13 +228,12 @@ class CommentLikeDislikeView(ViewSet):
         if serializer.is_valid():
             return Response(serializer.data,status=status.HTTP_200_OK)
         else: 
-            if vote.lower() == user_vote.vote.lower():
-    
-                user_vote.delete()
-                return Response({'info':'your vote has been delete success !'},status=status.HTTP_200_OK)
-            else:
+            if not user_vote.vote or user_vote.vote != vote.upper():
                 user_vote.vote = vote.upper()
-                user_vote.save()
+
+            elif  vote.lower() == user_vote.vote.lower():
+                user_vote.vote = None
+            user_vote.save()
             new_serializer = self.serializer_class(user_vote)
-            return Response(new_serializer.data,status=status.HTTP_200_OK)
+            return Response({'vote':user_vote.vote},status=status.HTTP_200_OK)
         

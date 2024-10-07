@@ -53,7 +53,7 @@ class CommentLikeDislike(models.Model):
         LIKE = "LIKE","Like",
         DISLIKE = "DISLIKE","Dislike",
 
-    vote = models.CharField(max_length=8,choices=Vote.choices)
+    vote = models.CharField(max_length=8,choices=Vote.choices,null=True,blank=True)
     user = models.ForeignKey(Commenter,on_delete=models.CASCADE,related_name="votes")
     comment = models.ForeignKey(Comment,on_delete=models.CASCADE,related_name="comment_vote")
 

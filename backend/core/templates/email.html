@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            color: #333;
+        }
+        p {
+            font-size: 16px;
+            color: #555;
+        }
+        .code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2b3137;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Email Verification</h2>
+        <p>Hi,</p>
+        <p>Thank you for signing up! Please use the following code to verify your email address:</p>
+        <p class="code">{{ verification_code }}</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <p>Thank you!</p>
+        <div class="footer">
+            <p>Best regards,<br>Gosip Team</p>
+        </div>
+    </div>
+</body>
+</html>

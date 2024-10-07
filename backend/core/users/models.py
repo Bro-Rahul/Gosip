@@ -1,8 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser,UserManager
-from rest_framework.authtoken.views import ObtainAuthToken
-from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import timedelta
 import uuid
+from django.core.mail import send_mail
 # Create your models here.
 
 class Role(models.TextChoices):
@@ -46,7 +47,6 @@ class CustomeUserManager(UserManager):
 class User(AbstractUser):
     avatar = models.ImageField(upload_to='profile/',null=True,blank=True)
     role = models.CharField(max_length=10,choices=Role.choices)
-    
     base_role = Role.ADMIN
 
     objects = CustomeUserManager()
@@ -75,6 +75,20 @@ class Commenter(User):
     base_role = Role.COMMENTER
 
     commenter = CommenterManager()
+
+class VerificationCode(models.Model):
+    email = models.EmailField(unique=True)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now=True)
+
+    def is_code_expired(self):
+        return timezone.now() <= self.created_at + timedelta(minutes=10)
+    
+    def validate_code(self,typed_code):
+        return self.is_code_expired() and typed_code == int(self.code)
+     
+    def __str__(self) -> str:
+        return f"{self.code}  {self.email}"
 
 
 class SecretKeys(models.Model):

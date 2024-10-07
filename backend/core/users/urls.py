@@ -4,7 +4,9 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from . import views
 
 routers = DefaultRouter()
-routers.register('users',views.UserView)
+routers.register('users-forget-password',views.ForgetPasswordView,basename="sdasd")   
+routers.register('users',views.ValidateEmailCodeView,basename='generate-unique-code')
+routers.register('users',views.UserView,basename='dsadd')
 routers.register('users',views.SecretKeyView,basename='secret-key')
 
 urlpatterns = [

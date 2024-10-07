@@ -23,6 +23,7 @@ class BaseCommentSerializer(serializers.ModelSerializer):
         model = Comment
         fields = '__all__'
 
+
     def get_sub_comments(self, obj):
         sub_comments = obj.sub_comment.all()
         data = [comment.pk for comment in sub_comments]
@@ -39,7 +40,11 @@ class BaseCommentSerializer(serializers.ModelSerializer):
     
     def get_vote(self,obj):
         try:
-            return obj.comment_vote.get(comment = obj.pk,user = obj.created_by.pk).vote
+            login_user_id = self.context.get('user')
+            if not login_user_id:
+                return None    
+            else:
+                return obj.comment_vote.get(comment = obj.pk,user = login_user_id).vote
         except CommentLikeDislike.DoesNotExist:
             return None
 

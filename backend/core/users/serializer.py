@@ -45,3 +45,8 @@ class SecretKeySerializer(serializers.ModelSerializer):
     class Meta: 
         model = SecretKeys
         fields = '__all__'
+
+class VerificationCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VerificationCode
+        exclude = ['created_at','code']

@@ -232,7 +232,51 @@ html{
   color: black;
   font-size: 20px;
 }
+.have-account{
+  text-align: start;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.have-account span{
+  color: rgb(98, 118, 221);
+  cursor: pointer;
+  transition: all .3s ease-in;
+}
+.have-account span:hover{
+  color: blue;
+  text-decoration: underline;
+}
+.email-verification{
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  justify-content: space-between;
+}
+.email-verification div{
+  display: flex;
+  width: 100%;
+  gap: 15px;
+}
 
+.email-verification div input{
+  display: flex;
+  width: 75%;
+}
+.forget-and-toggle{
+  display: flex ;
+  justify-content: space-between;
+}
+.forget-password{
+  color: rgb(97, 97, 251);
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all .3s ease-in;
+} 
+.forget-password:hover{
+  color: blue;
+  text-decoration: underline ;
+  text-underline-offset: 8px;
+}
 .login-with-gosip-container button{
   padding: 10px 20px;
   background-color: blue;
